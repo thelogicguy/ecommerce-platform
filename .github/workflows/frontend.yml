@@ -1,36 +1,75 @@
-name: Frontend CI/CD
+name: Frontend CI/CD Pipeline
 
 on:
   push:
-    paths:
-      - 'webapp/**'
+    branches:
+      - main
 
 jobs:
-  build:
+  frontend-build:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
+      # Step 1: Checkout the code from the repository
+      - name: Checkout Code
+        uses: actions/checkout@v3
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v2
-      with:
-        node-version: '14'
+      # Step 2: Cache Node.js dependencies for faster builds
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
 
-    - name: Install dependencies
-      run: |
-        cd webapp
-        rm -rf node_modules package-lock.json  # Ensure clean state
-        npm install # Regenerate package-lock.json if needed
-        npm ci # Run clean install to match package-lock.json
+      # Step 3: Set up Node.js environment
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'  # Ensure this matches your project's Node.js version
 
-    - name: Run tests
-      run: |
-        cd webapp
-        npm test
+      # Step 4: Install dependencies
+      - name: Install Dependencies
+        run: |
+          rm -rf node_modules package-lock.json  # Ensure clean state
+          npm install # Regenerate package-lock.json if needed
+          npm ci # Run clean install to match package-lock.json
+          working-directory: ./webapp
 
-    - name: Build Docker image
-      run: |
-        cd webapp
-        docker build -t ecommerce-frontend .
+      # Step 5: Run tests (using Jest or your preferred testing framework)
+      - name: Run Tests
+        run: npm run test
+        working-directory: ./webapp
+
+      # Step 6: Lint code using ESLint
+      - name: Lint Code
+        run: npm run lint
+        working-directory: ./webapp
+
+      # Step 7: Build Docker image
+      - name: Build Docker Image
+        run: |
+          docker build -t ecommerce-frontend ./webapp
+          docker tag ecommerce-frontend:latest thelogicguy/ecommerce-frontend:latest
+
+      # Step 8: Push Docker image to Docker Hub
+      - name: Push Docker Image to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+      - run: docker push thelogicguy/ecommerce-frontend:latest
+
+      # Step 9: Deploy to AWS EC2 (if necessary)
+      - name: Deploy to AWS EC2
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: ${{ secrets.AWS_EC2_PUBLIC_IP }}
+          username: ubuntu
+          key: ${{ secrets.AWS_EC2_SSH_KEY }}
+          script: |
+            docker pull thelogicguy/ecommerce-frontend:latest
+            docker stop ecommerce-frontend || true
+            docker rm ecommerce-frontend || true
+            docker run -d --name ecommerce-frontend -p 80:80 thelogicguy/ecommerce-frontend:latest

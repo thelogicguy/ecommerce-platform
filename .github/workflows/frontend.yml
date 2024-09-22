@@ -45,6 +45,11 @@ jobs:
         run: npm run lint
         working-directory: ./webapp
 
+      # Step 6: Build React App
+      - name: Build React App
+        run: npm run build
+        working-directory: ./webapp
+
       # Step 7: Build Docker image
       - name: Build Docker Image
         run: |

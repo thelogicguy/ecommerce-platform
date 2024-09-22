@@ -34,7 +34,7 @@ jobs:
         run: |
           rm -rf node_modules package-lock.json  # Ensure clean state
           npm install # Regenerate package-lock.json if needed
-          working-directory: ./api
+        working-directory: ./api
 
       # Step 5: Run tests (using Jest or your preferred testing framework)
       - name: Run Tests

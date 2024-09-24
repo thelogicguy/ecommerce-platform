@@ -1,6 +1,6 @@
 import React from 'react';
-import ProductList from './components/ProductList';
-import Login from './components/Login';
+import ProductList from './components/ProductList.mjs';
+import Login from './components/Login.js';
 
 function App() {
   return (
